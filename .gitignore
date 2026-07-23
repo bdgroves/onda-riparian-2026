@@ -5,6 +5,7 @@ data/ancillary/*.tif
 data/ancillary/*.gpkg
 outputs/**
 !outputs/.gitkeep
+!outputs/*.csv
 
 # Env
 .env
@@ -35,3 +36,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+
+notebooks/**/*.ipynb

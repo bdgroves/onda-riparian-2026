@@ -5,6 +5,12 @@
 #     text_representation:
 #       extension: .py
 #       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.19.5
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
 # ---
 
 # %% [markdown]
@@ -139,6 +145,12 @@ out = Path("outputs") / f"{site.slug}_landsat_annual.csv"
 out.parent.mkdir(exist_ok=True)
 df_annot.to_csv(out, index=False)
 print(f"wrote {out}")
+
+# %%
+from pathlib import Path
+Path("outputs").mkdir(exist_ok=True)
+df_annot.to_csv("outputs/pine_creek_landsat_annual.csv", index=False)
+print("Wrote:", Path("outputs/pine_creek_landsat_annual.csv").resolve())
 
 # %% [markdown]
 # ## Next

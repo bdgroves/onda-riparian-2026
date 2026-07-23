@@ -1,20 +1,11 @@
 """Join remote-sensing time series to ONDA restoration project events.
 
-ONDA installs beaver dam analogs (BDAs), plants riparian vegetation, and
-does other ground work at specific sites in specific years. To evaluate
-whether a change in NDVI/NDMI is plausibly a restoration outcome vs.
-background variability, we need to know when work happened.
-
-Restoration events are stored in ``data/restoration/events.csv`` with
-columns:
-
+Events live in data/restoration/events.csv with columns:
     site_slug, project_name, start_year, treatment_type, notes
 
-Where ``site_slug`` matches ``onda.sites.SITES`` keys. Fill this file
-in as you learn about specific projects; the pipeline treats missing
-events gracefully.
+Fill it in as you get project info from ONDA. The pipeline treats the file
+as optional and treats missing / empty / malformed rows gracefully.
 """
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,24 +13,37 @@ from pathlib import Path
 import pandas as pd
 
 DEFAULT_EVENTS_PATH = Path("data/restoration/events.csv")
+_COLS = ["site_slug", "project_name", "start_year", "treatment_type", "notes"]
 
 
 def load_events(path: str | Path = DEFAULT_EVENTS_PATH) -> pd.DataFrame:
     """Load the restoration events CSV.
 
-    If the file doesn't exist, returns an empty DataFrame with the
-    expected columns rather than raising.
+    Returns an empty DataFrame with the expected columns if the file
+    is missing, empty, or has no valid data rows.
     """
     p = Path(path)
-    cols = ["site_slug", "project_name", "start_year", "treatment_type", "notes"]
+    empty = pd.DataFrame(columns=_COLS)
     if not p.exists():
-        return pd.DataFrame(columns=cols)
-    df = pd.read_csv(p)
-    missing = set(cols) - set(df.columns)
+        return empty
+
+    try:
+        df = pd.read_csv(p, comment="#")
+    except pd.errors.EmptyDataError:
+        return empty
+
+    if df.empty:
+        return empty
+
+    missing = set(_COLS) - set(df.columns)
     if missing:
         raise ValueError(f"events.csv is missing columns: {sorted(missing)}")
+
+    # Coerce start_year to int, dropping rows where it can't be parsed.
+    df["start_year"] = pd.to_numeric(df["start_year"], errors="coerce")
+    df = df.dropna(subset=["start_year"])
     df["start_year"] = df["start_year"].astype(int)
-    return df
+    return df.reset_index(drop=True)
 
 
 def events_for(site_slug: str, path: str | Path = DEFAULT_EVENTS_PATH) -> pd.DataFrame:
@@ -54,20 +58,15 @@ def annotate_time_series(
     year_col: str = "year",
     path: str | Path = DEFAULT_EVENTS_PATH,
 ) -> pd.DataFrame:
-    """Add a ``restoration_event`` column marking rows in event years.
-
-    The value is the project name if an event started that year, else NaN.
-    Multiple events in one year are concatenated with " + ".
-    """
+    """Add a `restoration_event` column marking rows in event years."""
     events = events_for(site_slug, path=path)
+    out = ts.copy()
     if events.empty:
-        out = ts.copy()
         out["restoration_event"] = pd.NA
         return out
 
     per_year = events.groupby("start_year")["project_name"].apply(
         lambda s: " + ".join(s.astype(str))
     )
-    out = ts.copy()
     out["restoration_event"] = out[year_col].map(per_year)
     return out
