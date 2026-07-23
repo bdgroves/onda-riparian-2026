@@ -1,10 +1,10 @@
-# onda-riparian-2026
+﻿# onda-riparian-2026
 
 > A 2026 revamp of a 2018 volunteer GIS project for the [Oregon Natural Desert Association](https://www.onda.org). Tracks vegetation and moisture change in three eastern Oregon drainages using ~40 years of satellite imagery, to help evaluate riparian restoration outcomes.
 
 ## Background
 
-In 2018 I volunteered with ONDA's riparian restoration coordinator to build a Google Earth Engine tool that computed NDVI (Normalized Difference Vegetation Index) from NAIP imagery for three drainages where ONDA had done restoration work: **Hay Creek**, **Pine Creek**, and **South Fork Crooked River**. The idea was that in eastern Oregon in late summer — when there's no rain — plants that are still green are tapping groundwater, so NDVI is a proxy for groundwater extent, and change in NDVI over time is a proxy for restoration effectiveness.
+In 2018 I volunteered with ONDA's riparian restoration coordinator to build a Google Earth Engine tool that computed NDVI (Normalized Difference Vegetation Index) from NAIP imagery for three drainages where ONDA had done restoration work: **Hay Creek**, **Pine Creek**, and **South Fork Crooked River**. The idea was that in eastern Oregon in late summer â€” when there's no rain â€” plants that are still green are tapping groundwater, so NDVI is a proxy for groundwater extent, and change in NDVI over time is a proxy for restoration effectiveness.
 
 That first pass worked but had real limits:
 
@@ -19,7 +19,7 @@ This repo is the 2026 rebuild.
 
 | 2018 | 2026 |
 |---|---|
-| NAIP, one growing season | Landsat 5/7/8/9 (1984–present) + Sentinel-2 (2015–present) |
+| NAIP, one growing season | Landsat 5/7/8/9 (1984â€“present) + Sentinel-2 (2015â€“present) |
 | NDVI only | NDVI + NDMI + NDWI + Sentinel-1 SAR backscatter |
 | Google Fusion Table sites | USGS HUC10 watersheds (versioned, public) |
 | JavaScript in GEE editor | Python + `earthengine-api` + `geemap` + `xarray` |
@@ -34,7 +34,7 @@ Three eastern Oregon drainages, defined by USGS HUC10 watershed codes so anyone 
 ## Quickstart
 
 ```bash
-git clone https://github.com/brooksgroves/onda-riparian-2026.git
+git clone https://github.com/bdgroves/onda-riparian-2026.git
 cd onda-riparian-2026
 conda env create -f environment.yml
 conda activate onda-riparian
@@ -48,35 +48,35 @@ Start with `notebooks/01_site_setup.ipynb` to fetch the HUC10 boundaries, then `
 
 ```
 onda-riparian-2026/
-├── data/
-│   ├── sites/                 # HUC10 watershed polygons (fetched, not committed)
-│   ├── restoration/           # ONDA restoration project polygons + start dates
-│   └── ancillary/             # NHD streams, 3DEP DEM tiles, boundaries
-├── notebooks/
-│   ├── 01_site_setup.ipynb           # HUCs → GeoDataFrames, sanity maps
-│   ├── 02_landsat_timeseries.ipynb   # 1984-present late-summer composites
-│   ├── 03_sentinel2_finescale.ipynb  # 10 m, 2015-present, red-edge indices
-│   ├── 04_sar_moisture.ipynb         # Sentinel-1 backscatter as moisture proxy
-│   └── 05_change_detection.ipynb     # Mann-Kendall + change-point tests
-├── src/onda/                  # Reusable library
-│   ├── sites.py               # HUC fetching, geometry utilities
-│   ├── composites.py          # Cloud-masked seasonal composites
-│   ├── indices.py             # NDVI, NDMI, NDWI, EVI, NBR
-│   ├── trends.py              # Mann-Kendall, Theil-Sen, LandTrendr wrappers
-│   ├── restoration.py         # Join time series to project dates
-│   └── viz.py                 # Plotting + leafmap helpers
-├── dashboard/                 # Streamlit app
-├── outputs/                   # Figures + CSV exports (gitignored)
-└── docs/                      # Blog post draft, methods notes
+â”œâ”€â”€ data/
+â”‚   â”œâ”€â”€ sites/                 # HUC10 watershed polygons (fetched, not committed)
+â”‚   â”œâ”€â”€ restoration/           # ONDA restoration project polygons + start dates
+â”‚   â””â”€â”€ ancillary/             # NHD streams, 3DEP DEM tiles, boundaries
+â”œâ”€â”€ notebooks/
+â”‚   â”œâ”€â”€ 01_site_setup.ipynb           # HUCs â†’ GeoDataFrames, sanity maps
+â”‚   â”œâ”€â”€ 02_landsat_timeseries.ipynb   # 1984-present late-summer composites
+â”‚   â”œâ”€â”€ 03_sentinel2_finescale.ipynb  # 10 m, 2015-present, red-edge indices
+â”‚   â”œâ”€â”€ 04_sar_moisture.ipynb         # Sentinel-1 backscatter as moisture proxy
+â”‚   â””â”€â”€ 05_change_detection.ipynb     # Mann-Kendall + change-point tests
+â”œâ”€â”€ src/onda/                  # Reusable library
+â”‚   â”œâ”€â”€ sites.py               # HUC fetching, geometry utilities
+â”‚   â”œâ”€â”€ composites.py          # Cloud-masked seasonal composites
+â”‚   â”œâ”€â”€ indices.py             # NDVI, NDMI, NDWI, EVI, NBR
+â”‚   â”œâ”€â”€ trends.py              # Mann-Kendall, Theil-Sen, LandTrendr wrappers
+â”‚   â”œâ”€â”€ restoration.py         # Join time series to project dates
+â”‚   â””â”€â”€ viz.py                 # Plotting + leafmap helpers
+â”œâ”€â”€ dashboard/                 # Streamlit app
+â”œâ”€â”€ outputs/                   # Figures + CSV exports (gitignored)
+â””â”€â”€ docs/                      # Blog post draft, methods notes
 ```
 
 ## Data sources
 
 All free, all public, all API-accessible:
 
-- **Landsat Collection 2 Level-2** (surface reflectance, 30 m, 1984–present) via Google Earth Engine.
-- **Sentinel-2 Level-2A** (surface reflectance, 10 m, 2015–present) via GEE.
-- **Sentinel-1 GRD** (C-band SAR, 10 m, 2014–present) via GEE.
+- **Landsat Collection 2 Level-2** (surface reflectance, 30 m, 1984â€“present) via Google Earth Engine.
+- **Sentinel-2 Level-2A** (surface reflectance, 10 m, 2015â€“present) via GEE.
+- **Sentinel-1 GRD** (C-band SAR, 10 m, 2014â€“present) via GEE.
 - **USGS Watershed Boundary Dataset** for HUC10 polygons.
 - **USGS 3DEP** LiDAR-derived DEMs for topographic context.
 - **NHDPlus HR** for stream centerlines.
@@ -90,7 +90,7 @@ All free, all public, all API-accessible:
 - [ ] Sentinel-1 SAR moisture proxy
 - [ ] Restoration-project date joins + change-point detection
 - [ ] Streamlit dashboard
-- [ ] Field-report blog post → brooksgroves.com
+- [ ] Field-report blog post â†’ brooksgroves.com
 
 ## License
 

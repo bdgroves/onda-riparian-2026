@@ -1,4 +1,4 @@
----
+﻿---
 title: "Revisiting a 2018 desert-riparian volunteer project, eight years later"
 subtitle: "What changes when you rebuild a Google Earth Engine JavaScript prototype as a modern Python remote-sensing pipeline"
 date: 2026-07-24
@@ -14,13 +14,13 @@ and cold-emailed the [Oregon Natural Desert Association](https://onda.org) askin
 if they had any volunteer GIS work. Their riparian restoration coordinator, Jefferson
 Jacobs, wrote back with two projects. One involved Oregon Department of Transportation
 right-of-way analysis. The other was to use the (then relatively new) Google Earth
-Engine platform to compute NDVI — the Normalized Difference Vegetation Index — for
+Engine platform to compute NDVI â€” the Normalized Difference Vegetation Index â€” for
 three drainages in eastern Oregon where ONDA had been doing restoration work: **Hay
 Creek**, **Pine Creek**, and the **South Fork of the Crooked River**.
 
 The idea behind the NDVI work is elegant. Eastern Oregon in late summer is dry.
 No rain from mid-July through early September in most years. So any plant that
-is still green in August has to be pulling water from somewhere — and in these
+is still green in August has to be pulling water from somewhere â€” and in these
 drainages, "somewhere" almost always means a shallow groundwater aquifer connected
 to the creek. Map the green pixels in August, and you've mapped the shape of the
 functional groundwater system. Do it every year, and you can watch groundwater
@@ -44,10 +44,10 @@ A lot, as it turns out. In no particular order:
   standard for anything reproducible.
 - **Landsat Collection 2** replaced Collection 1 in 2021, with better geometric
   and radiometric calibration back to 1984.
-- **Sentinel-2** started producing usable imagery in 2016 — 10 m resolution
+- **Sentinel-2** started producing usable imagery in 2016 â€” 10 m resolution
   versus Landsat's 30 m, which actually resolves the narrow green strips along
   eastern Oregon creeks instead of smearing them into mixed pixels.
-- **Sentinel-1** (C-band SAR, all-weather, 2015→) makes it feasible to check
+- **Sentinel-1** (C-band SAR, all-weather, 2015â†’) makes it feasible to check
   optical results against a completely independent sensor.
 - **`pymannkendall`** and **`ruptures`** turned trend testing and change-point
   detection into two-line imports.
@@ -59,13 +59,13 @@ A lot, as it turns out. In no particular order:
 ## The rebuild
 
 The 2026 version lives at
-[github.com/brooksgroves/onda-riparian-2026](https://github.com/brooksgroves/onda-riparian-2026).
+[github.com/bdgroves/onda-riparian-2026](https://github.com/bdgroves/onda-riparian-2026).
 It has:
 
 - A **Python package** (`onda`) with modules for site loading, composite
   building, index computation, trend testing, and plotting. All lazy imports,
   full docstrings, and the pure-python modules are unit-tested.
-- **Five notebooks** covering site setup, Landsat 1984→present, Sentinel-2
+- **Five notebooks** covering site setup, Landsat 1984â†’present, Sentinel-2
   fine-scale, Sentinel-1 SAR moisture, and pixel-level change detection.
 - A **Streamlit dashboard** for the pick-a-site pick-an-index-and-look use case.
 - **Study sites as USGS HUC10 codes** rather than Fusion Tables, so anyone can
@@ -75,7 +75,7 @@ It has:
 ## The interesting technical bits
 
 **Cross-sensor harmonization.** Landsat 5, 7, 8, and 9 each name their bands
-differently — Landsat 5 calls the near-infrared band `SR_B4`, Landsat 8 calls
+differently â€” Landsat 5 calls the near-infrared band `SR_B4`, Landsat 8 calls
 it `SR_B5`. The `composites` module renames everything to a common vocabulary
 (`blue`, `green`, `red`, `nir`, `swir1`, `swir2`) at the earliest possible
 step, so every downstream index computation is one function that works across
@@ -106,12 +106,12 @@ _This section is a placeholder. Run notebook `02_landsat_timeseries.ipynb`
 against your Earth Engine account, then drop the figures and the Mann-Kendall
 outputs in here. Suggested structure:_
 
-1. **Per-site figure**: annual NDMI 1984→present with 5-yr rolling mean,
+1. **Per-site figure**: annual NDMI 1984â†’present with 5-yr rolling mean,
    Theil-Sen trend, and any change points and restoration events overlaid.
 2. **Cross-site table**: MK trend direction, p-value, and per-decade slope for
    each of the three drainages, for NDVI, NDMI, and NDWI.
 3. **One anomaly narrative**: pick the site with the largest change point and
-   write two paragraphs on what happened in that year — was it fire, a
+   write two paragraphs on what happened in that year â€” was it fire, a
    restoration project, a drought, a flood?
 
 ## What I'd still love to add
