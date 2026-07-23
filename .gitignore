@@ -6,6 +6,7 @@ data/ancillary/*.gpkg
 outputs/**
 !outputs/.gitkeep
 !outputs/*.csv
+!outputs/*.png
 
 # Env
 .env
