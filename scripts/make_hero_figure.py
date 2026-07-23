@@ -1,40 +1,69 @@
-"""Generate the hero figure: map of the three sites + summary stats panel.
+"""Generate the hero figure: Oregon overview map + three site cards.
 
-Reads:  data/sites/onda_study_sites_enriched.geojson
-Writes: outputs/hero_figure.png
+Reads:
+  data/sites/onda_study_sites_enriched.geojson
+  data/ancillary/oregon_boundary.geojson
 
-Portfolio-quality summary suitable for the top of the README, the blog
-post, and Jefferson's email.
+Writes:
+  outputs/hero_figure.png
+
+If the Oregon boundary isn't cached in data/ancillary/, this script
+fetches it once from a stable GitHub-hosted geojson and caches it there.
 """
 from __future__ import annotations
 
+import json
+import urllib.request
 from pathlib import Path
 
 import geopandas as gpd
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.gridspec import GridSpec
+from matplotlib.patches import FancyBboxPatch
 from matplotlib.patheffects import withStroke
 
 SITES_GEOJSON = Path("data/sites/onda_study_sites_enriched.geojson")
+OREGON_CACHE = Path("data/ancillary/oregon_boundary.geojson")
 OUT = Path("outputs/hero_figure.png")
 
-SITE_COLORS = {
-    "sf_crooked": "#2a8f2a",  # restoration-success candidate = green
-    "pine_creek": "#e08a1a",  # green-but-drying = amber
-    "hay_creek":  "#c04040",  # green-but-drying = red
-}
+SITE_COLORS = {"sf_crooked": "#2a8f2a", "pine_creek": "#e08a1a", "hay_creek": "#c04040"}
+STORY_ACCENT = {"sf_crooked": "#e8f4e8", "pine_creek": "#fdf1de", "hay_creek": "#f9e5e5"}
 DISPLAY_ORDER = ["sf_crooked", "pine_creek", "hay_creek"]
 
-LABEL_OFFSETS = {
-    "hay_creek":  ( 0.03,  0.04),
-    "pine_creek": (-0.15,  0.02),
-    "sf_crooked": ( 0.03, -0.03),
+LABEL_POSITIONS = {
+    "hay_creek":  (-116.9, 45.55),
+    "pine_creek": (-116.9, 44.75),
+    "sf_crooked": (-116.9, 43.95),
 }
 
 
-def _fmt_arrow(trend: str) -> str:
-    return {"increasing": "^", "decreasing": "v", "no trend": "="}[trend]
+def load_oregon() -> gpd.GeoDataFrame:
+    """Load Oregon state boundary. Fetch and cache on first run."""
+    if OREGON_CACHE.exists():
+        return gpd.read_file(OREGON_CACHE)
+
+    print("Oregon boundary not cached, fetching...")
+    OREGON_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    url = "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
+    with urllib.request.urlopen(url, timeout=30) as r:
+        data = json.loads(r.read().decode())
+    for feat in data.get("features", []):
+        if feat.get("properties", {}).get("name") == "Oregon":
+            payload = {"type": "FeatureCollection", "features": [feat]}
+            with open(OREGON_CACHE, "w") as f:
+                json.dump(payload, f)
+            print(f"Cached {OREGON_CACHE}")
+            gdf = gpd.read_file(OREGON_CACHE)
+            if gdf.crs is None:
+                gdf.set_crs(4326, inplace=True)
+            return gdf
+    raise RuntimeError("Oregon feature not found in the source dataset")
+
+
+def _arrow(trend: str) -> str:
+    return {"increasing": "\u25B2", "decreasing": "\u25BC", "no trend": "\u25CF"}.get(trend, "?")
 
 
 def _cell_color(trend: str, p: float) -> str:
@@ -42,136 +71,170 @@ def _cell_color(trend: str, p: float) -> str:
     if trend == "increasing" and sig: return "#2a8f2a"
     if trend == "decreasing" and sig: return "#c04040"
     if sig:                            return "#8a5a2a"
-    return "#999"
+    return "#888"
 
 
-def make_hero(sites: gpd.GeoDataFrame) -> None:
-    fig = plt.figure(figsize=(15, 8.5), facecolor="white")
-    gs = GridSpec(1, 2, width_ratios=[1.15, 1], wspace=0.08, figure=fig)
+def draw_map(ax, sites, oregon, sites_by_slug):
+    ax.set_facecolor("#eef2f7")
+    ax.set_aspect("equal", adjustable="box")
 
-    # --------------------------------------- Map
-    ax_map = fig.add_subplot(gs[0, 0])
-    ax_map.set_facecolor("#f4f1e8")
+    oregon.plot(ax=ax, color="#f6f0d9", edgecolor="#8a7859", linewidth=1.5, zorder=2)
 
-    plot_sites = sites.copy()
-    plot_sites["_color"] = plot_sites["slug"].map(SITE_COLORS)
-    plot_sites.plot(ax=ax_map, color=plot_sites["_color"],
-                    edgecolor="#111", lw=1.5, alpha=0.75, zorder=3)
+    ax.text(-123.7, 45.3, "OREGON",
+            fontsize=22, fontweight="bold", color="#e0d5a8",
+            va="center", ha="center", zorder=3,
+            path_effects=[withStroke(linewidth=1.5, foreground="#f6f0d9")])
 
-    for _, row in sites.iterrows():
-        slug = row["slug"]
+    for slug in DISPLAY_ORDER:
+        row = sites_by_slug[slug]
+        poly = gpd.GeoSeries([row.geometry], crs=4326)
+        poly.plot(ax=ax, color=SITE_COLORS[slug], alpha=0.9,
+                  edgecolor="#111", linewidth=1.8, zorder=6)
         cent = row.geometry.centroid
-        dx, dy = LABEL_OFFSETS[slug]
-        ax_map.annotate(
-            row["name"],
-            xy=(cent.x, cent.y), xytext=(cent.x + dx, cent.y + dy),
-            fontsize=11, fontweight="bold", color="#111",
-            ha="left" if dx > 0 else "right",
-            arrowprops=dict(arrowstyle="-", color="#555", lw=0.8),
-            path_effects=[withStroke(linewidth=2.5, foreground="white")],
-            zorder=5,
-        )
+        ax.plot(cent.x, cent.y, "o", ms=18, color="#111",
+                markeredgecolor="white", markeredgewidth=2, zorder=7)
+        ax.plot(cent.x, cent.y, "o", ms=12, color=SITE_COLORS[slug],
+                markeredgecolor="white", markeredgewidth=1.5, zorder=8)
+        lx, ly = LABEL_POSITIONS[slug]
+        ax.annotate(row["name"], xy=(cent.x, cent.y), xytext=(lx, ly),
+                    fontsize=12, fontweight="bold", color=SITE_COLORS[slug],
+                    ha="left", va="center",
+                    arrowprops=dict(arrowstyle="-", color="#555", lw=1.0,
+                                    connectionstyle="arc3,rad=0"),
+                    zorder=9)
 
-    minx, miny, maxx, maxy = sites.total_bounds
-    pad_x, pad_y = (maxx - minx) * 0.35, (maxy - miny) * 0.10
-    ax_map.set_xlim(minx - pad_x, maxx + pad_x)
-    ax_map.set_ylim(miny - pad_y, maxy + pad_y)
-    ax_map.set_xticks([])
-    ax_map.set_yticks([])
-    for spine in ax_map.spines.values():
-        spine.set_color("#888")
+    minx, miny, maxx, maxy = oregon.total_bounds
+    ax.set_xlim(minx - 0.5, maxx + 3.5)
+    ax.set_ylim(miny - 0.5, maxy + 0.5)
 
-    ax_map.text(0.02, 0.98, "Three ONDA riparian restoration reaches",
-                transform=ax_map.transAxes, fontsize=14, fontweight="bold",
-                color="#111", va="top", ha="left",
-                path_effects=[withStroke(linewidth=3, foreground="white")])
-    ax_map.text(0.02, 0.945, "Central & eastern Oregon  |  6.7 to 17.5 km each",
-                transform=ax_map.transAxes, fontsize=10, color="#444",
-                va="top", ha="left",
-                path_effects=[withStroke(linewidth=2.5, foreground="white")])
+    lon_ticks = np.arange(-124, -115, 2)
+    lat_ticks = np.arange(42, 47, 1)
+    for lon in lon_ticks:
+        ax.axvline(lon, color="#ccc", lw=0.4, zorder=1, alpha=0.6)
+    for lat in lat_ticks:
+        ax.axhline(lat, color="#ccc", lw=0.4, zorder=1, alpha=0.6)
+    ax.set_xticks(lon_ticks)
+    ax.set_yticks(lat_ticks)
+    ax.set_xticklabels([f"{abs(x)}\u00B0W" for x in lon_ticks], fontsize=8, color="#888")
+    ax.set_yticklabels([f"{y}\u00B0N" for y in lat_ticks], fontsize=8, color="#888")
+    ax.tick_params(length=0)
+    for spine in ax.spines.values():
+        spine.set_color("#bbb"); spine.set_linewidth(0.8)
 
-    ax_map.annotate("N", xy=(0.94, 0.90), xycoords="axes fraction",
-                    fontsize=14, fontweight="bold", ha="center", va="center", color="#111")
-    ax_map.annotate("", xy=(0.94, 0.94), xytext=(0.94, 0.86),
-                    xycoords="axes fraction",
-                    arrowprops=dict(arrowstyle="->", color="#111", lw=1.5))
+    xlim = ax.get_xlim(); ylim = ax.get_ylim()
+    na_x = xlim[1] - (xlim[1] - xlim[0]) * 0.08
+    na_y = ylim[0] + (ylim[1] - ylim[0]) * 0.10
+    arrow_len = (ylim[1] - ylim[0]) * 0.055
+    ax.annotate("", xy=(na_x, na_y + arrow_len), xytext=(na_x, na_y),
+                arrowprops=dict(arrowstyle="->", color="#111", lw=1.8))
+    ax.text(na_x, na_y + arrow_len + (ylim[1] - ylim[0]) * 0.012, "N",
+            fontsize=11, fontweight="bold", ha="center", va="bottom", color="#111")
 
-    legend_patches = [
-        mpatches.Patch(color=SITE_COLORS["sf_crooked"],
-                       label="SF Crooked  -  wetting hypothesis (2005-2015)"),
-        mpatches.Patch(color=SITE_COLORS["pine_creek"],
-                       label="Pine Creek  -  regime shift in 2019"),
-        mpatches.Patch(color=SITE_COLORS["hay_creek"],
-                       label="Hay Creek  -  recent SAR-detected wetting"),
+    scale_x0 = xlim[0] + (xlim[1] - xlim[0]) * 0.06
+    scale_y = ylim[0] + (ylim[1] - ylim[0]) * 0.045
+    scale_len_deg = 1.25
+    ax.plot([scale_x0, scale_x0 + scale_len_deg], [scale_y, scale_y],
+            color="#111", lw=2.5, solid_capstyle="butt")
+    ax.plot([scale_x0, scale_x0], [scale_y - 0.05, scale_y + 0.05], color="#111", lw=2)
+    ax.plot([scale_x0 + scale_len_deg] * 2, [scale_y - 0.05, scale_y + 0.05], color="#111", lw=2)
+    ax.text(scale_x0 + scale_len_deg / 2, scale_y - 0.20, "100 km",
+            fontsize=8, ha="center", va="top", color="#111", fontweight="bold")
+
+
+def draw_card(ax, site, color, accent):
+    ax.axis("off")
+    ax.set_xlim(0, 100); ax.set_ylim(0, 100)
+
+    ax.add_patch(FancyBboxPatch((0.5, 1), 99, 98,
+        boxstyle="round,pad=0.5,rounding_size=2",
+        linewidth=1, edgecolor="#e0e0e0", facecolor="#fdfdfd", zorder=1))
+    ax.add_patch(mpatches.Rectangle((0.5, 1), 2.2, 98,
+        facecolor=color, edgecolor="none", zorder=2))
+
+    ax.text(5.5, 87, site["name"], fontsize=16, fontweight="bold",
+            color="#111", va="center")
+    notes = (site.get("notes") or "").split(".")[0]
+    ax.text(5.5, 75, notes, fontsize=9.5, color="#666", va="center", style="italic")
+
+    metrics = [
+        ("NDVI",   site["landsat_ndvi_trend"], site["landsat_ndvi_p"],
+         site["landsat_ndvi_slope_per_yr"], "40-yr Landsat"),
+        ("NDMI",   site["landsat_ndmi_trend"], site["landsat_ndmi_p"],
+         site["landsat_ndmi_slope_per_yr"], "40-yr Landsat"),
+        ("NDWI",   site["landsat_ndwi_trend"], site["landsat_ndwi_p"],
+         site["landsat_ndwi_slope_per_yr"], "40-yr Landsat"),
+        ("SAR VV", site.get("sar_vv_trend", "-"), site.get("sar_vv_p", 1.0),
+         site.get("sar_vv_slope_dB_per_yr", 0.0), "10-yr Sentinel-1"),
     ]
-    ax_map.legend(handles=legend_patches, loc="lower left",
-                  fontsize=9, frameon=True, facecolor="white",
-                  edgecolor="#888", framealpha=0.92)
+    col_x = [7, 30, 53, 76]
+    for (label, trend, p, slope, source), x0 in zip(metrics, col_x):
+        ax.text(x0, 59, label, fontsize=10, fontweight="bold", color="#333", va="center")
+        ax.text(x0, 52.5, source, fontsize=7.5, color="#999", va="center")
 
-    # --------------------------------------- Stats panel
-    ax_stat = fig.add_subplot(gs[0, 1])
-    ax_stat.set_facecolor("white")
-    ax_stat.set_xlim(0, 10)
-    ax_stat.set_ylim(0, 10)
-    ax_stat.axis("off")
+        sig = p < 0.05
+        cc = _cell_color(trend, p)
+        weight = "bold" if sig else "normal"
+        arrow_size = 22 if sig else 18
+        ax.text(x0, 37, _arrow(trend), fontsize=arrow_size, color=cc,
+                va="center", fontweight="bold")
+        ax.text(x0 + 5.5, 37, trend, fontsize=10.5, color=cc,
+                va="center", fontweight=weight)
+        ax.text(x0, 22, f"p = {p:.3f}", fontsize=8.5, color="#555", va="center")
+        slope_units = " dB/yr" if label == "SAR VV" else " /yr"
+        ax.text(x0, 15, f"slope: {slope:+.4f}{slope_units}",
+                fontsize=8, color="#777", va="center", family="monospace")
 
-    ax_stat.text(0, 9.75, "40 years of Landsat  +  10 years of Sentinel-1 SAR",
-                 fontsize=13, fontweight="bold", color="#111")
-    ax_stat.text(0, 9.35, "Late-summer composites, Jul 15 - Sep 15, per-site polygon mean",
-                 fontsize=9, color="#555", style="italic")
-    ax_stat.plot([0, 10], [9.15, 9.15], color="#111", lw=1.5)
+    story = site.get("story", "")
+    ax.add_patch(FancyBboxPatch((5, 2), 92, 7,
+        boxstyle="round,pad=0.3,rounding_size=1.2",
+        linewidth=0, facecolor=accent, edgecolor="none", zorder=2))
+    ax.text(6.5, 5.5, "Story:", fontsize=9, fontweight="bold", color=color, va="center")
+    ax.text(14, 5.5, story, fontsize=9, color="#333", va="center", style="italic")
 
+
+def main() -> None:
+    sites = gpd.read_file(SITES_GEOJSON)
+    oregon = load_oregon()
+    if oregon.crs is None:
+        oregon.set_crs(4326, inplace=True)
     sites_by_slug = {row["slug"]: row for _, row in sites.iterrows()}
-    row_ys = [7.4, 4.7, 2.0]
 
-    for y, slug in zip(row_ys, DISPLAY_ORDER):
-        site = sites_by_slug[slug]
-        color = SITE_COLORS[slug]
+    plt.rcParams["font.family"] = "DejaVu Sans"
+    fig = plt.figure(figsize=(17, 10.5), facecolor="white")
+    gs = GridSpec(2, 2, figure=fig,
+                  width_ratios=[0.55, 1], height_ratios=[0.11, 1],
+                  wspace=0.05, hspace=0.05,
+                  left=0.03, right=0.97, top=0.97, bottom=0.04)
 
-        ax_stat.add_patch(mpatches.Rectangle((0, y - 0.55), 0.28, 1.9,
-                                             facecolor=color, edgecolor="none"))
-        ax_stat.text(0.45, y + 0.85, site["name"], fontsize=12, fontweight="bold",
-                     color="#111", va="center")
-        notes = site["notes"] if pd.notna_or_str(site.get("notes")) else ""
-        ax_stat.text(0.45, y + 0.35, notes.split(".")[0],
-                     fontsize=8, color="#666", va="center", style="italic")
+    # Header
+    ax_h = fig.add_subplot(gs[0, :]); ax_h.axis("off")
+    ax_h.set_xlim(0, 1); ax_h.set_ylim(0, 1)
+    ax_h.text(0.005, 0.62, "ONDA Riparian 2026",
+              fontsize=26, fontweight="bold", color="#111", va="center")
+    ax_h.text(0.29, 0.70,
+              "Three sites  \u00B7  two sensors  \u00B7  one 40-year record",
+              fontsize=15, color="#333", va="center", style="italic")
+    ax_h.text(0.005, 0.15,
+              "A 2026 rebuild of a 2018 volunteer GIS project for the Oregon Natural Desert "
+              "Association  \u00B7  Landsat 1984\u20132025  \u00B7  Sentinel-1 SAR 2015\u20132024",
+              fontsize=10.5, color="#666", va="center")
+    ax_h.plot([0, 1], [0.02, 0.02], color="#c0c0c0", lw=1, clip_on=False)
 
-        cells = [
-            ("NDVI",   site["landsat_ndvi_trend"], site["landsat_ndvi_p"], site["landsat_ndvi_slope_per_yr"]),
-            ("NDMI",   site["landsat_ndmi_trend"], site["landsat_ndmi_p"], site["landsat_ndmi_slope_per_yr"]),
-            ("NDWI",   site["landsat_ndwi_trend"], site["landsat_ndwi_p"], site["landsat_ndwi_slope_per_yr"]),
-            ("SAR VV", site.get("sar_vv_trend", "-"), site.get("sar_vv_p", 1.0), site.get("sar_vv_slope_dB_per_yr", 0.0)),
-        ]
-        x_start, col_w = 0.45, 2.35
-        for i, (label, trend, p, slope) in enumerate(cells):
-            cx = x_start + i * col_w
-            marker = _fmt_arrow(trend) if trend in ("increasing", "decreasing", "no trend") else "?"
-            color_ = _cell_color(trend, p) if trend in ("increasing", "decreasing", "no trend") else "#999"
-            weight = "bold" if p < 0.05 else "normal"
-            ax_stat.text(cx, y - 0.15, label, fontsize=8, color="#333",
-                         fontweight="bold", va="center")
-            ax_stat.text(cx, y - 0.55, f"{marker}  {trend}",
-                         fontsize=9, color=color_, va="center", fontweight=weight)
-            ax_stat.text(cx, y - 0.95, f"p={p:.3f}  ({slope:+.4f}/yr)",
-                         fontsize=7.5, color="#555", va="center")
+    # Map
+    ax_map = fig.add_subplot(gs[1, 0])
+    draw_map(ax_map, sites, oregon, sites_by_slug)
 
-        ax_stat.text(0.45, y - 1.55, f"Story: {site['story']}",
-                     fontsize=8.5, color="#111", style="italic", wrap=True)
+    # Cards
+    gs_cards = gs[1, 1].subgridspec(3, 1, hspace=0.17)
+    for i, slug in enumerate(DISPLAY_ORDER):
+        ax_card = fig.add_subplot(gs_cards[i, 0])
+        draw_card(ax_card, sites_by_slug[slug], SITE_COLORS[slug], STORY_ACCENT[slug])
 
-        if y != row_ys[-1]:
-            ax_stat.plot([0, 10], [y - 2.0, y - 2.0], color="#e0e0e0", lw=0.8)
-
-    ax_stat.plot([0, 10], [0.3, 0.3], color="#111", lw=1.5)
-    ax_stat.text(0, -0.15,
-                 "Bold arrows = statistically significant (p < 0.05). "
-                 "Colors: green = greening/wetting, red = drying, brown = mixed.",
-                 fontsize=7.5, color="#666", va="top")
-
-    fig.suptitle("ONDA Riparian 2026  |  Three sites, two sensors, one 40-year record",
-                 y=0.99, fontsize=15, fontweight="bold", x=0.5)
-    fig.text(0.5, 0.955,
-             "A 2026 rebuild of a 2018 volunteer GIS project for the Oregon Natural Desert Association",
-             ha="center", fontsize=10, style="italic", color="#555")
+    fig.text(0.62, 0.015,
+             "Bold arrows = statistically significant (p < 0.05).  "
+             "\u25B2 = increasing, \u25BC = decreasing, \u25CF = no trend.  "
+             "Green = greening or wetting, red = drying, brown = mixed significance.",
+             fontsize=8.5, color="#666", va="center", ha="center", style="italic")
 
     OUT.parent.mkdir(exist_ok=True)
     fig.savefig(OUT, dpi=160, bbox_inches="tight", facecolor="white")
@@ -179,13 +242,5 @@ def make_hero(sites: gpd.GeoDataFrame) -> None:
     print(f"Wrote {OUT}")
 
 
-# Tiny helper: pandas.notna doesn't handle strings; this does
-import pandas as pd
-def _notna_or_str(x):
-    return isinstance(x, str) or (x is not None and pd.notna(x))
-pd.notna_or_str = _notna_or_str
-
-
 if __name__ == "__main__":
-    sites = gpd.read_file(SITES_GEOJSON)
-    make_hero(sites)
+    main()
