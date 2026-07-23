@@ -193,3 +193,60 @@ def sentinel2_annual_late_summer(
         )
     )
     return reduced.set("year", year, "n_scenes", n).clip(region)
+
+# --------------------------------------------------------------------------
+# Sentinel-1 SAR
+# --------------------------------------------------------------------------
+
+def _empty_sar(region: ee.Geometry) -> ee.Image:
+    """Empty 2-band SAR image, used when a year has zero scenes."""
+    return (
+        ee.Image.constant([0, 0])
+        .rename(["VV", "VH"])
+        .toFloat()
+        .updateMask(ee.Image(0))
+        .clip(region)
+    )
+
+
+def sentinel1_annual_late_summer(
+    region: ee.Geometry,
+    year: int,
+    orbit: str = "ASCENDING",
+    reducer: ee.Reducer | None = None,
+    start_md: str = LATE_SUMMER_START,
+    end_md: str = LATE_SUMMER_END,
+) -> ee.Image:
+    """One late-summer Sentinel-1 SAR composite (VV+VH, dB).
+
+    Sentinel-1A launched 2014-04-03; usable coverage from ~2015 onward.
+    Uses a single orbit direction (default ASCENDING) so that look angles
+    stay consistent across years -- mixing ascending and descending
+    passes introduces systematic biases in backscatter that can swamp
+    real inter-annual signal.
+
+    Bands returned: VV, VH (both dB, calibrated by ESA).
+    """
+    reducer = reducer or ee.Reducer.median()
+    start = f"{year}{start_md}"
+    end = f"{year}{end_md}"
+
+    coll = (
+        ee.ImageCollection("COPERNICUS/S1_GRD")
+        .filterBounds(region)
+        .filterDate(start, end)
+        .filter(ee.Filter.eq("instrumentMode", "IW"))
+        .filter(ee.Filter.eq("orbitProperties_pass", orbit))
+        .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
+        .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
+        .select(["VV", "VH"])
+    )
+    n = coll.size()
+    reduced = ee.Image(
+        ee.Algorithms.If(
+            n.gt(0),
+            coll.reduce(reducer).rename(["VV", "VH"]),
+            _empty_sar(region),
+        )
+    )
+    return reduced.set("year", year, "n_scenes", n, "orbit", orbit).clip(region)
