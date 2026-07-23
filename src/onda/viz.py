@@ -1,10 +1,10 @@
-"""Plotting and mapping helpers.
+﻿"""Plotting and mapping helpers.
 
 Two families of visuals:
 
-1. **Time-series plots** — annual index values with Theil-Sen trend line,
+1. **Time-series plots** â€” annual index values with Theil-Sen trend line,
    rolling smoother, restoration event vlines, and change-point markers.
-2. **Interactive maps** — leafmap wrappers for showing composites and
+2. **Interactive maps** â€” leafmap wrappers for showing composites and
    trend rasters side-by-side. See ``dashboard/`` for the Streamlit version.
 """
 
@@ -19,7 +19,7 @@ import pandas as pd
 if TYPE_CHECKING:
     import ee
 
-# Palette. Kept intentionally muted — real data over vibe.
+# Palette. Kept intentionally muted â€” real data over vibe.
 PAL = {
     "ndvi": "#3f7f3f",
     "ndmi": "#1f6faf",
@@ -102,10 +102,11 @@ def leafmap_composite(image, region, vis_params: dict, name: str = "composite"):
 
     Deferred import so the library doesn't demand leafmap for non-map code.
     """
-    import geemap.foliumap as geemap  # foliumap plays nicer in notebooks
+    import geemap
 
     m = geemap.Map()
     m.centerObject(region, 11)
     m.addLayer(image, vis_params, name)
     m.addLayer(region, {"color": "white"}, "study area")
     return m
+
