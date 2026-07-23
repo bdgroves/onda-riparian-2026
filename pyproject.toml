@@ -1,7 +1,10 @@
-[build-system]
+﻿[build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
+# --------------------------------------------------------------------------
+# Package metadata
+# --------------------------------------------------------------------------
 [project]
 name = "onda"
 version = "0.1.0"
@@ -15,13 +18,83 @@ keywords = ["remote-sensing", "riparian", "ndvi", "landsat", "earth-engine", "or
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# --------------------------------------------------------------------------
+# Pixi — reproducible, cross-platform environment
+# --------------------------------------------------------------------------
+[tool.pixi.project]
+name = "onda-riparian-2026"
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+
+[tool.pixi.dependencies]
+python = "3.11.*"
+# Earth Engine + geospatial core
+earthengine-api = ">=1.6"
+geemap = ">=0.35"
+leafmap = ">=0.44"
+geopandas = ">=1.0"
+shapely = ">=2.0"
+fiona = ">=1.10"
+pyproj = ">=3.6"
+rasterio = ">=1.4"
+rioxarray = ">=0.17"
+xarray = ">=2024.9"
+dask = ">=2024.9"
+# Analysis
+pandas = ">=2.2"
+numpy = ">=2.0"
+scipy = ">=1.14"
+scikit-learn = ">=1.5"
+statsmodels = ">=0.14"
+pymannkendall = "*"
+ruptures = "*"
+# Viz + notebooks
+matplotlib = ">=3.9"
+seaborn = ">=0.13"
+plotly = ">=5.24"
+jupyterlab = ">=4.2"
+ipywidgets = ">=8.1"
+jupytext = ">=1.16"
+# Dashboard
+streamlit = ">=1.39"
+
+[tool.pixi.pypi-dependencies]
+onda = { path = ".", editable = true }
+pystac-client = ">=0.8"
+planetary-computer = ">=1.0"
+
+[tool.pixi.feature.dev.dependencies]
+pytest = ">=8.3"
+ruff = ">=0.7"
+pre-commit = ">=3.8"
+
+[tool.pixi.environments]
+default = { features = [], solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+# Reusable commands. Run with `pixi run <task>`.
+[tool.pixi.tasks]
+auth = "earthengine authenticate"
+lab = "jupyter lab notebooks/"
+dashboard = "streamlit run dashboard/app.py"
+sync-notebooks = { cmd = "jupytext --sync notebooks/*.py", description = "Regenerate .ipynb from .py percent-format" }
+
+[tool.pixi.feature.dev.tasks]
+test = "pytest tests/ -v"
+lint = "ruff check src tests"
+format = "ruff format src tests"
+check = { depends-on = ["lint", "test"], description = "Lint + test" }
+
+# --------------------------------------------------------------------------
+# Tooling
+# --------------------------------------------------------------------------
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
-ignore = ["E501"]  # line-too-long handled by formatter
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
