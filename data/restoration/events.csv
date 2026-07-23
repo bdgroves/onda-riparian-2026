@@ -1,0 +1,5 @@
+site_slug,project_name,start_year,treatment_type,notes
+# Fill in with real project data from ONDA. Sample rows below — replace or delete.
+# treatment_type is free-form but recommended values: bda, planting, fencing, grazing_rest, channel_reshaping
+pine_creek,Pine Creek BDA cluster,2016,bda,Sample row — verify with ONDA before publishing
+sf_crooked,South Fork riparian planting,2019,planting,Sample row — verify with ONDA before publishing

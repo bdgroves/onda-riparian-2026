@@ -1,0 +1,37 @@
+# Data + outputs (regenerable)
+data/sites/*.geojson
+data/sites/*.gpkg
+data/ancillary/*.tif
+data/ancillary/*.gpkg
+outputs/**
+!outputs/.gitkeep
+
+# Env
+.env
+.envrc
+*.egg-info/
+build/
+dist/
+
+# Notebook artifacts
+.ipynb_checkpoints/
+notebooks/**/*.png
+notebooks/**/*.csv
+
+# EE credentials
+.config/earthengine/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
